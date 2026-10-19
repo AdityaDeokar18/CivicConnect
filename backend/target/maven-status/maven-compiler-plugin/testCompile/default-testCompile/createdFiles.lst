@@ -1,0 +1,4 @@
+com\civicconnect\AdminWorkflowTests.class
+com\civicconnect\AuthWorkflowTests.class
+com\civicconnect\ComplaintStateMachineTests.class
+com\civicconnect\NotificationAndFileTests.class
