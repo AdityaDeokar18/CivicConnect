@@ -1,0 +1,13 @@
+.git/
+.gitignore
+*.docx
+*.pdf
+*.pptx
+*.jpeg
+*.jpg
+*.png
+frontend/node_modules/
+frontend/dist/
+CivicConnect/
+backend/target/
+backend/uploads/
