@@ -30,7 +30,7 @@ export const OfficerProofModal = ({
   const isAssigned = complaint.status === 'ASSIGNED';
   const isInProgress = complaint.status === 'IN_PROGRESS';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -49,7 +49,7 @@ export const OfficerProofModal = ({
 
     try {
       if (isAssigned) {
-        const res = onStartWork(complaint.id, proofImages[0], remarks);
+        const res = await onStartWork(complaint.id, proofImages[0], remarks);
         if (res.success) {
           onClose();
         } else {
@@ -57,7 +57,7 @@ export const OfficerProofModal = ({
           setSubmitting(false);
         }
       } else if (isInProgress) {
-        const res = onResolve(complaint.id, proofImages[0], remarks);
+        const res = await onResolve(complaint.id, proofImages[0], remarks);
         if (res.success) {
           onClose();
         } else {

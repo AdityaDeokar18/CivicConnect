@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useComplaints } from '../../context/ComplaintContext';
 import Card from '../../components/common/Card';
@@ -7,6 +7,7 @@ import PriorityBadge from '../../components/common/PriorityBadge';
 import ComplaintTimeline from '../../components/citizen/ComplaintTimeline';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import LoadingState from '../../components/common/LoadingState';
 import {
   MapPin,
   Calendar,
@@ -23,13 +24,42 @@ import {
 export const ComplaintDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getComplaint, submitFeedback } = useComplaints();
-  const complaint = getComplaint(id);
+  const { getComplaint, fetchComplaint, submitFeedback } = useComplaints();
+  const [complaint, setComplaint] = useState(getComplaint(id));
+  const [loading, setLoading] = useState(!complaint);
 
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [comments, setComments] = useState('');
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchComplaint(id).then(c => {
+      if (isMounted && c) {
+        setComplaint(c);
+      }
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [id]);
+
+  const handleFeedbackSubmit = async (e) => {
+    e.preventDefault();
+    await submitFeedback(complaint.id, rating, comments);
+    const updated = await fetchComplaint(id);
+    if (updated) setComplaint(updated);
+    setRatingModalOpen(false);
+    setFeedbackSuccess(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LoadingState message="Loading grievance details..." />
+      </div>
+    );
+  }
 
   if (!complaint) {
     return (
@@ -42,13 +72,6 @@ export const ComplaintDetailsPage = () => {
       </div>
     );
   }
-
-  const handleFeedbackSubmit = (e) => {
-    e.preventDefault();
-    submitFeedback(complaint.id, rating, comments);
-    setRatingModalOpen(false);
-    setFeedbackSuccess(true);
-  };
 
   const isResolved = complaint.status === 'RESOLVED';
   const isClosed = complaint.status === 'CLOSED';

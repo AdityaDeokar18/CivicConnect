@@ -7,7 +7,7 @@ import Modal from '../../components/common/Modal';
 import { Settings, PlusCircle, Building2, CheckCircle2, Shield, Clock } from 'lucide-react';
 
 export const AdminSettingsPage = () => {
-  const [departments, setDepartments] = useState(adminService.getDepartments());
+  const [departments, setDepartments] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,22 +26,42 @@ export const AdminSettingsPage = () => {
     supportEmail: 'support@civicconnect.gov.in'
   });
 
-  const handleCreateDept = (e) => {
-    e.preventDefault();
-    const newDept = adminService.createDepartment(formData);
-    setDepartments(adminService.getDepartments());
-    setModalOpen(false);
-    setSuccessMsg(`Department "${newDept.name}" created successfully!`);
-    setTimeout(() => setSuccessMsg(''), 4000);
-    setFormData({
-      name: '',
-      code: '',
-      description: '',
-      headOfficer: '',
-      contactEmail: '',
-      slaHours: 48
-    });
+  const loadDepartments = async () => {
+    try {
+      const data = await adminService.getDepartments();
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load departments:', err);
+    }
   };
+
+  React.useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  const handleCreateDept = async (e) => {
+    e.preventDefault();
+    try {
+      const newDept = await adminService.createDepartment(formData);
+      await loadDepartments();
+      setModalOpen(false);
+      setSuccessMsg(`Department "${newDept.name || formData.name}" created successfully!`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+      setFormData({
+        name: '',
+        code: '',
+        description: '',
+        headOfficer: '',
+        contactEmail: '',
+        slaHours: 48
+      });
+    } catch (err) {
+      console.error('Failed to create department:', err);
+    }
+  };
+
+
+
 
   const handleSaveParameters = (e) => {
     e.preventDefault();

@@ -1,200 +1,178 @@
-import { mockUsers } from '../data/mockUsers';
+import api, { setToken, clearAuth, getToken } from './api';
 
 const CURRENT_USER_KEY = 'civicconnect_user';
-const USERS_KEY = 'civicconnect_users';
-
-const initializeUsers = () => {
-  const existing = localStorage.getItem(USERS_KEY);
-  if (!existing) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
-  } else {
-    try {
-      const parsed = JSON.parse(existing);
-      // Ensure default admin exists
-      const hasAdmin = parsed.some(u => u.role === 'ROLE_ADMIN');
-      if (!hasAdmin) {
-        parsed.unshift(mockUsers[0]);
-        localStorage.setItem(USERS_KEY, JSON.stringify(parsed));
-      }
-    } catch {
-      localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
-    }
-  }
-};
 
 export const authService = {
   getCurrentUser: () => {
-    initializeUsers();
     const stored = localStorage.getItem(CURRENT_USER_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
   },
 
-  getAllUsers: () => {
-    initializeUsers();
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  fetchCurrentUser: async () => {
+    try {
+      const token = getToken();
+      if (!token) return null;
+      const user = await api.get('/auth/me');
+      if (user) {
+        const stored = authService.getCurrentUser() || {};
+        const updated = { ...stored, ...user, token };
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updated));
+        return updated;
+      }
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        authService.logout();
+      }
+      return null;
+    }
   },
 
   login: async (email, password, expectedRole = null) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const cleanEmail = (email || '').trim().toLowerCase();
+    try {
+      const res = await api.post('/auth/login', {
+        email: cleanEmail,
+        password,
+        expectedRole
+      });
 
-    const user = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-    if (!user) {
-      return {
-        success: false,
-        message: 'No account found with this email address. Please register first.'
-      };
-    }
-
-    if (user.password && password && user.password !== password) {
-      return {
-        success: false,
-        message: 'Invalid password. Please check your credentials.'
-      };
-    }
-
-    // Role check if logging in through specific portal
-    if (expectedRole && user.role !== expectedRole) {
-      if (expectedRole === 'ROLE_CITIZEN' && user.role === 'ROLE_OFFICER') {
+      if (res.token) {
+        setToken(res.token);
+        const sessionUser = {
+          ...res.user,
+          token: res.token
+        };
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
         return {
-          success: false,
-          message: 'This is an Officer account. Please use the Officer Login portal.'
+          success: true,
+          user: sessionUser,
+          role: res.role || sessionUser.role,
+          token: res.token,
+          message: res.message || 'Login successful'
         };
       }
-      if (expectedRole === 'ROLE_OFFICER' && user.role === 'ROLE_CITIZEN') {
-        return {
-          success: false,
-          message: 'This is a Citizen account. Please use Citizen Login.'
-        };
-      }
-      if (expectedRole === 'ROLE_ADMIN' && user.role !== 'ROLE_ADMIN') {
-        return {
-          success: false,
-          message: 'Access denied. Account does not have administrative privileges.'
-        };
-      }
-    }
 
-    // Officer Approval Check
-    if (user.role === 'ROLE_OFFICER') {
-      if (user.approvalStatus === 'PENDING') {
+      if (res.isPending) {
         return {
           success: false,
           isPending: true,
-          message: 'Your officer account registration is PENDING Administrative approval. You will be able to log in once an Administrator verifies and approves your account.'
+          message: res.message || 'Your officer account registration is PENDING Administrative approval.'
         };
       }
-      if (user.approvalStatus === 'REJECTED') {
+
+      if (res.isRejected) {
         return {
           success: false,
           isRejected: true,
-          message: 'Your officer account registration request was REJECTED by Municipal Administration. Contact support@civicconnect.gov.in for clarification.'
+          message: res.message || 'Your officer account registration request was REJECTED by Municipal Administration.'
         };
       }
+
+      return {
+        success: false,
+        message: res.message || 'Invalid credentials'
+      };
+    } catch (error) {
+      const message = error.data?.message || error.message || 'Authentication failed. Please verify credentials.';
+      const isPending = message.includes('PENDING') || error.data?.isPending;
+      const isRejected = message.includes('REJECTED') || error.data?.isRejected;
+
+      return {
+        success: false,
+        isPending,
+        isRejected,
+        message
+      };
     }
-
-    const sessionUser = {
-      ...user,
-      token: `Bearer civic_jwt_${user.role}_${user.id}_${Date.now()}`
-    };
-
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
-    return {
-      success: true,
-      user: sessionUser,
-      role: sessionUser.role,
-      token: sessionUser.token
-    };
-  },
-
-  adminLogin: async (email, password) => {
-    return authService.login(email, password, 'ROLE_ADMIN');
-  },
-
-  officerLogin: async (email, password) => {
-    return authService.login(email, password, 'ROLE_OFFICER');
   },
 
   citizenLogin: async (email, password) => {
     return authService.login(email, password, 'ROLE_CITIZEN');
   },
 
-  registerCitizen: async (userData) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const cleanEmail = (userData.email || '').trim().toLowerCase();
+  officerLogin: async (email, password) => {
+    return authService.login(email, password, 'ROLE_OFFICER');
+  },
 
-    const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
+  adminLogin: async (email, password) => {
+    return authService.login(email, password, 'ROLE_ADMIN');
+  },
+
+  registerCitizen: async (userData) => {
+    const cleanEmail = (userData.email || '').trim().toLowerCase();
+    try {
+      const res = await api.post('/auth/register/citizen', {
+        fullName: userData.fullName.trim(),
+        email: cleanEmail,
+        password: userData.password,
+        phoneNumber: userData.phoneNumber ? userData.phoneNumber.trim() : null,
+        address: userData.address ? userData.address.trim() : null
+      });
+
+      if (res.token) {
+        setToken(res.token);
+        const sessionUser = {
+          ...res.user,
+          token: res.token
+        };
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
+        return {
+          success: true,
+          user: sessionUser,
+          role: 'ROLE_CITIZEN',
+          token: res.token,
+          message: res.message || 'Citizen registration completed successfully.'
+        };
+      }
+
+      return {
+        success: true,
+        user: res.user,
+        role: 'ROLE_CITIZEN',
+        message: res.message || 'Citizen registered successfully.'
+      };
+    } catch (error) {
       return {
         success: false,
-        message: 'An account with this email address already exists. Please log in.'
+        message: error.data?.message || error.message || 'Registration failed.'
       };
     }
-
-    const newCitizen = {
-      id: Date.now(),
-      fullName: userData.fullName.trim(),
-      email: cleanEmail,
-      password: userData.password,
-      role: 'ROLE_CITIZEN',
-      approvalStatus: 'APPROVED',
-      phoneNumber: userData.phoneNumber ? userData.phoneNumber.trim() : '',
-      address: userData.address ? userData.address.trim() : '',
-      registeredAt: new Date().toISOString()
-    };
-
-    users.push(newCitizen);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-    return {
-      success: true,
-      user: newCitizen,
-      role: 'ROLE_CITIZEN',
-      message: 'Citizen registration completed successfully.'
-    };
   },
 
   registerOfficer: async (officerData) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const cleanEmail = (officerData.email || '').trim().toLowerCase();
+    try {
+      const res = await api.post('/auth/register/officer', {
+        fullName: officerData.fullName.trim(),
+        email: cleanEmail,
+        password: officerData.password,
+        phoneNumber: officerData.phoneNumber ? officerData.phoneNumber.trim() : null,
+        department: officerData.department || 'Road Maintenance & Potholes',
+        ward: officerData.ward ? officerData.ward.trim() : 'Ward 1',
+        badgeNumber: officerData.badgeNumber ? officerData.badgeNumber.trim() : null,
+        designation: officerData.designation ? officerData.designation.trim() : 'Field Engineer'
+      });
 
-    const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
+      return {
+        success: true,
+        user: res.user,
+        role: 'ROLE_OFFICER',
+        isPending: true,
+        approvalStatus: 'PENDING',
+        message: res.message || 'Officer registration submitted successfully. Your account is PENDING administrative approval.'
+      };
+    } catch (error) {
       return {
         success: false,
-        message: 'An account with this email address already exists. Please log in.'
+        message: error.data?.message || error.message || 'Officer registration failed.'
       };
     }
-
-    const newOfficer = {
-      id: Date.now(),
-      fullName: officerData.fullName.trim(),
-      email: cleanEmail,
-      password: officerData.password,
-      role: 'ROLE_OFFICER',
-      approvalStatus: 'PENDING', // Officer accounts require Admin approval before login
-      phoneNumber: officerData.phoneNumber ? officerData.phoneNumber.trim() : '',
-      department: officerData.department || 'Road Maintenance & Potholes',
-      ward: officerData.ward ? officerData.ward.trim() : 'Ward 1',
-      badgeNumber: officerData.badgeNumber ? officerData.badgeNumber.trim() : `OFF-${Math.floor(100 + Math.random() * 900)}`,
-      designation: officerData.designation ? officerData.designation.trim() : 'Field Engineer',
-      registeredAt: new Date().toISOString()
-    };
-
-    users.push(newOfficer);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-    return {
-      success: true,
-      user: newOfficer,
-      role: 'ROLE_OFFICER',
-      approvalStatus: 'PENDING',
-      message: 'Officer registration submitted successfully. Your account is now pending Admin approval.'
-    };
   },
 
   register: async (userData) => {
@@ -204,49 +182,58 @@ export const authService = {
     return authService.registerCitizen(userData);
   },
 
-  // Returns ONLY approved officers (available for complaint assignment)
-  getRegisteredOfficers: (filterApprovedOnly = true) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    return users.filter(u => {
-      if (u.role !== 'ROLE_OFFICER') return false;
-      if (filterApprovedOnly) {
-        return u.approvalStatus === 'APPROVED';
-      }
-      return true;
-    });
-  },
-
-  getPendingOfficers: () => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    return users.filter(u => u.role === 'ROLE_OFFICER' && u.approvalStatus === 'PENDING');
-  },
-
-  approveOfficer: (officerId) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const index = users.findIndex(u => String(u.id) === String(officerId));
-    if (index !== -1) {
-      users[index].approvalStatus = 'APPROVED';
-      users[index].approvedAt = new Date().toISOString();
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      return { success: true, officer: users[index] };
+  getRegisteredOfficers: async (filterApprovedOnly = true) => {
+    try {
+      const data = await api.get('/admin/officers');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Error fetching registered officers:', err);
+      return [];
     }
-    return { success: false, message: 'Officer not found' };
   },
 
-  rejectOfficer: (officerId) => {
-    initializeUsers();
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const index = users.findIndex(u => String(u.id) === String(officerId));
-    if (index !== -1) {
-      users[index].approvalStatus = 'REJECTED';
-      users[index].rejectedAt = new Date().toISOString();
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      return { success: true, officer: users[index] };
+  getPendingOfficers: async () => {
+    try {
+      const data = await api.get('/admin/officers/pending');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Error fetching pending officers:', err);
+      return [];
     }
-    return { success: false, message: 'Officer not found' };
+  },
+
+  getAllUsers: async () => {
+    try {
+      const data = await api.get('/admin/users');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      return [];
+    }
+  },
+
+  approveOfficer: async (officerId) => {
+    try {
+      const data = await api.put(`/admin/officers/${officerId}/approve`);
+      return { success: true, officer: data };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.data?.message || error.message || 'Failed to approve officer'
+      };
+    }
+  },
+
+  rejectOfficer: async (officerId, reason = 'Application rejected by Municipal Administration') => {
+    try {
+      const data = await api.put(`/admin/officers/${officerId}/reject`, { reason });
+      return { success: true, officer: data };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.data?.message || error.message || 'Failed to reject officer'
+      };
+    }
   },
 
   forgotPassword: async (email) => {
@@ -254,7 +241,7 @@ export const authService = {
   },
 
   logout: () => {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    clearAuth();
   }
 };
 

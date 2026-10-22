@@ -10,14 +10,15 @@ import ImageUploader from '../../components/citizen/ImageUploader';
 import MockMapPicker from '../../components/citizen/MockMapPicker';
 import { PlusCircle, Send, MapPin, Building2, Layers, AlertCircle } from 'lucide-react';
 
+import { adminService } from '../../services/adminService';
+
 export const ReportProblemPage = () => {
   const { addComplaint } = useComplaints();
   const navigate = useNavigate();
 
-  // All categories across all departments
-  const defaultDept = mockDepartments[0];
-  const [departmentId, setDepartmentId] = useState(defaultDept.id);
-  const [category, setCategory] = useState(defaultDept.categories[0]);
+  const [departments, setDepartments] = useState(mockDepartments);
+  const [departmentId, setDepartmentId] = useState(mockDepartments[0]?.id || 1);
+  const [category, setCategory] = useState(mockDepartments[0]?.categories?.[0] || 'Pothole Hazard');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
@@ -29,12 +30,24 @@ export const ReportProblemPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const currentDept = mockDepartments.find(d => d.id === Number(departmentId)) || defaultDept;
+  React.useEffect(() => {
+    adminService.getDepartments().then(depts => {
+      if (depts && depts.length > 0) {
+        setDepartments(depts);
+        setDepartmentId(depts[0].id);
+        if (depts[0].categories && depts[0].categories.length > 0) {
+          setCategory(depts[0].categories[0]);
+        }
+      }
+    }).catch(() => {});
+  }, []);
+
+  const currentDept = departments.find(d => d.id === Number(departmentId)) || departments[0] || mockDepartments[0];
 
   const handleDeptChange = (newDeptId) => {
     setDepartmentId(newDeptId);
-    const dept = mockDepartments.find(d => d.id === Number(newDeptId));
-    if (dept && dept.categories.length > 0) {
+    const dept = departments.find(d => d.id === Number(newDeptId));
+    if (dept && dept.categories && dept.categories.length > 0) {
       setCategory(dept.categories[0]);
     }
   };
@@ -45,7 +58,7 @@ export const ReportProblemPage = () => {
     setLongitude(loc.longitude);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -57,7 +70,7 @@ export const ReportProblemPage = () => {
     setSubmitting(true);
 
     try {
-      const newRecord = addComplaint({
+      const newRecord = await addComplaint({
         title,
         description,
         department: currentDept.name,
@@ -70,9 +83,13 @@ export const ReportProblemPage = () => {
         images
       });
 
-      navigate(`/citizen/complaints/${newRecord.id}`);
-    } catch {
-      setError('Failed to submit grievance. Please try again.');
+      if (newRecord && newRecord.id) {
+        navigate(`/citizen/complaints/${newRecord.id}`);
+      } else {
+        navigate('/citizen/complaints');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to submit grievance. Please try again.');
       setSubmitting(false);
     }
   };
@@ -106,14 +123,14 @@ export const ReportProblemPage = () => {
               label="Municipal Department *"
               value={departmentId}
               onChange={(e) => handleDeptChange(e.target.value)}
-              options={mockDepartments.map(d => ({ value: d.id, label: d.name }))}
+              options={departments.map(d => ({ value: d.id, label: d.name }))}
             />
 
             <Select
               label="Issue Category *"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              options={currentDept.categories.map(c => ({ value: c, label: c }))}
+              options={(currentDept?.categories || []).map(c => ({ value: c, label: c }))}
             />
 
             <Select

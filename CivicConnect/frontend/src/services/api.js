@@ -104,7 +104,18 @@ export const api = {
       method: 'POST',
       body: formData
     });
+  },
+
+  resolveFileUrl: (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+      return url;
+    }
+    const base = BASE_URL.replace(/\/api\/?$/, '');
+    return `${base}${url.startsWith('/') ? url : `/${url}`}`;
   }
 };
+
+export const resolveFileUrl = api.resolveFileUrl;
 
 export default api;
