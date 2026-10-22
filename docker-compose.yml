@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: civicconnect-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: civicconnect
+      MYSQL_ROOT_PASSWORD: rootpassword123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - civic-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: civicconnect-backend
+    restart: always
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/civicconnect?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootpassword123
+      JWT_SECRET: civicconnect_super_secure_jwt_secret_key_2026_at_least_256_bits_long
+      ADMIN_BOOTSTRAP_EMAIL: admin@civicconnect.gov.in
+      ADMIN_BOOTSTRAP_PASSWORD: AdminPass2026!
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:80
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - civic-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080/api
+    container_name: civicconnect-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - civic-network
+
+volumes:
+  mysql_data:
+  backend_uploads:
+
+networks:
+  civic-network:
+    driver: bridge
