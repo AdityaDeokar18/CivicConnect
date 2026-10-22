@@ -9,62 +9,69 @@ export const ComplaintProvider = ({ children }) => {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshComplaints = () => {
+  const refreshComplaints = async () => {
     setLoading(true);
-    const data = complaintService.getAllComplaints();
-    setComplaints(data);
-    setLoading(false);
+    try {
+      const data = await complaintService.getAllComplaints(currentUser);
+      setComplaints(data);
+    } catch (err) {
+      console.error('Failed to load complaints:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     refreshComplaints();
   }, [currentUser]);
 
-  const addComplaint = (complaintData) => {
-    const newRecord = complaintService.createComplaint(complaintData, currentUser);
-    setComplaints(prev => [newRecord, ...prev]);
+  const addComplaint = async (complaintData) => {
+    const newRecord = await complaintService.createComplaint(complaintData, currentUser);
+    if (newRecord) {
+      setComplaints(prev => [newRecord, ...prev.filter(c => c.id !== newRecord.id)]);
+    }
     return newRecord;
   };
 
-  const assignComplaint = (complaintId, officer, department, remarks) => {
+  const assignComplaint = async (complaintId, officer, department, remarks) => {
     const adminName = currentUser?.fullName || "Administrator";
-    const updated = complaintService.assignComplaint(complaintId, officer, department, remarks, adminName);
+    const updated = await complaintService.assignComplaint(complaintId, officer, department, remarks, adminName);
     if (updated) {
       setComplaints(prev => prev.map(c => String(c.id) === String(complaintId) ? updated : c));
     }
     return updated;
   };
 
-  const startWork = (id, proofImage, remarks) => {
+  const startWork = async (id, proofImage, remarks) => {
     const officerName = currentUser?.fullName || "Municipal Officer";
-    const res = complaintService.startWork(id, proofImage, remarks, officerName);
+    const res = await complaintService.startWork(id, proofImage, remarks, officerName);
     if (res.success && res.complaint) {
       setComplaints(prev => prev.map(c => String(c.id) === String(id) ? res.complaint : c));
     }
     return res;
   };
 
-  const resolveComplaint = (id, proofImage, remarks) => {
+  const resolveComplaint = async (id, proofImage, remarks) => {
     const officerName = currentUser?.fullName || "Municipal Officer";
-    const res = complaintService.resolveComplaint(id, proofImage, remarks, officerName);
+    const res = await complaintService.resolveComplaint(id, proofImage, remarks, officerName);
     if (res.success && res.complaint) {
       setComplaints(prev => prev.map(c => String(c.id) === String(id) ? res.complaint : c));
     }
     return res;
   };
 
-  const submitFeedback = (id, rating, comments) => {
+  const submitFeedback = async (id, rating, comments) => {
     const citizenName = currentUser?.fullName || "Citizen";
-    const updated = complaintService.submitFeedback(id, rating, comments, citizenName);
+    const updated = await complaintService.submitFeedback(id, rating, comments, citizenName);
     if (updated) {
       setComplaints(prev => prev.map(c => String(c.id) === String(id) ? updated : c));
     }
     return updated;
   };
 
-  const updateStatus = (id, newStatus, remarks, proofImage = null) => {
+  const updateStatus = async (id, newStatus, remarks, proofImage = null) => {
     const actorName = `${currentUser?.fullName || 'Municipal Official'} (${currentUser?.role === 'ROLE_ADMIN' ? 'Admin' : 'Officer'})`;
-    const updated = complaintService.updateComplaintStatus(id, newStatus, remarks, actorName, proofImage);
+    const updated = await complaintService.updateComplaintStatus(id, newStatus, remarks, actorName, proofImage);
     if (updated) {
       setComplaints(prev => prev.map(c => String(c.id) === String(id) ? updated : c));
     }
@@ -72,7 +79,23 @@ export const ComplaintProvider = ({ children }) => {
   };
 
   const getComplaint = (id) => {
-    return complaintService.getComplaintById(id);
+    return complaints.find(c => String(c.id) === String(id) || c.complaintRefNo === id) || null;
+  };
+
+  const fetchComplaint = async (id) => {
+    const found = await complaintService.getComplaintById(id);
+    if (found) {
+      setComplaints(prev => {
+        const idx = prev.findIndex(c => String(c.id) === String(found.id));
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = found;
+          return next;
+        }
+        return [found, ...prev];
+      });
+    }
+    return found;
   };
 
   const myComplaints = complaints.filter(
@@ -106,7 +129,8 @@ export const ComplaintProvider = ({ children }) => {
     resolveComplaint,
     submitFeedback,
     updateStatus,
-    getComplaint
+    getComplaint,
+    fetchComplaint
   };
 
   return <ComplaintContext.Provider value={value}>{children}</ComplaintContext.Provider>;

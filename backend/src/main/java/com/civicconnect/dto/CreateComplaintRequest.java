@@ -112,4 +112,27 @@ public class CreateComplaintRequest {
     public void setPhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
     }
+
+    public void setImages(java.util.List<String> images) {
+        if (images != null && !images.isEmpty() && (this.photoUrl == null || this.photoUrl.isBlank())) {
+            this.photoUrl = images.get(0);
+        }
+    }
+
+    public void setImageUrls(java.util.List<String> imageUrls) {
+        setImages(imageUrls);
+    }
+
+    public void setDepartmentId(Object departmentId) {
+        if (departmentId != null && (this.department == null || this.department.isBlank())) {
+            this.department = String.valueOf(departmentId);
+        }
+    }
+
+    public void setWard(String ward) {
+        if (this.location == null || this.location.isBlank()) {
+            this.location = ward;
+        }
+    }
 }
+

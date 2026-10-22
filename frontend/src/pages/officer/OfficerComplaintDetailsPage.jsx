@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useComplaints } from '../../context/ComplaintContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import PriorityBadge from '../../components/common/PriorityBadge';
 import ComplaintTimeline from '../../components/citizen/ComplaintTimeline';
 import Button from '../../components/common/Button';
+import LoadingState from '../../components/common/LoadingState';
 import OfficerProofModal from '../../components/officer/OfficerProofModal';
 import {
   MapPin,
@@ -29,10 +30,46 @@ export const OfficerComplaintDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getComplaint, startWork, resolveComplaint } = useComplaints();
-  const complaint = getComplaint(id);
+  const { getComplaint, fetchComplaint, startWork, resolveComplaint } = useComplaints();
+  const [complaint, setComplaint] = useState(getComplaint(id));
+  const [loading, setLoading] = useState(!complaint);
 
   const [proofModalOpen, setProofModalOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchComplaint(id).then(c => {
+      if (isMounted && c) {
+        setComplaint(c);
+      }
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [id]);
+
+  const handleStartWork = async (complaintId, proofImage, remarks) => {
+    const res = await startWork(complaintId, proofImage, remarks);
+    if (res.success && res.complaint) {
+      setComplaint(res.complaint);
+    }
+    return res;
+  };
+
+  const handleResolve = async (complaintId, proofImage, remarks) => {
+    const res = await resolveComplaint(complaintId, proofImage, remarks);
+    if (res.success && res.complaint) {
+      setComplaint(res.complaint);
+    }
+    return res;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LoadingState message="Loading work order details..." />
+      </div>
+    );
+  }
 
   if (!complaint) {
     return (
@@ -275,8 +312,8 @@ export const OfficerComplaintDetailsPage = () => {
         isOpen={proofModalOpen}
         onClose={() => setProofModalOpen(false)}
         complaint={complaint}
-        onStartWork={startWork}
-        onResolve={resolveComplaint}
+        onStartWork={handleStartWork}
+        onResolve={handleResolve}
       />
     </div>
   );

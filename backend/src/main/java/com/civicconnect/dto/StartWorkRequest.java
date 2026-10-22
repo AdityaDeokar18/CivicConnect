@@ -31,4 +31,29 @@ public class StartWorkRequest {
     public void setRemarks(String remarks) {
         this.remarks = remarks;
     }
+
+    public void setWorkProofUrl(String workProofUrl) {
+        if (this.proofUrl == null || this.proofUrl.isBlank()) {
+            this.proofUrl = workProofUrl;
+        }
+    }
+
+    public void setProof(String proof) {
+        if (this.proofUrl == null || this.proofUrl.isBlank()) {
+            this.proofUrl = proof;
+        }
+    }
+
+    public void setWorkNotes(String workNotes) {
+        if (this.remarks == null || this.remarks.isBlank()) {
+            this.remarks = workNotes;
+        }
+    }
+
+    public void setNotes(String notes) {
+        if (this.remarks == null || this.remarks.isBlank()) {
+            this.remarks = notes;
+        }
+    }
+
 }

@@ -23,25 +23,38 @@ import {
 
 export const AdminUsersPage = () => {
   const { approveOfficer, rejectOfficer } = useAuth();
-  const [users, setUsers] = useState(adminService.getUsers());
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionNotice, setActionNotice] = useState('');
 
-  const refreshUsers = () => {
-    setUsers(adminService.getUsers());
+  const refreshUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await adminService.getUsers();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleApprove = (officerId, officerName) => {
-    approveOfficer(officerId);
+  React.useEffect(() => {
     refreshUsers();
+  }, []);
+
+  const handleApprove = async (officerId, officerName) => {
+    await approveOfficer(officerId);
+    await refreshUsers();
     setActionNotice(`Officer ${officerName} has been APPROVED! They can now log in and be assigned grievances.`);
     setTimeout(() => setActionNotice(''), 4500);
   };
 
-  const handleReject = (officerId, officerName) => {
-    rejectOfficer(officerId);
-    refreshUsers();
+  const handleReject = async (officerId, officerName) => {
+    await rejectOfficer(officerId);
+    await refreshUsers();
     setActionNotice(`Officer ${officerName} application has been REJECTED.`);
     setTimeout(() => setActionNotice(''), 4500);
   };

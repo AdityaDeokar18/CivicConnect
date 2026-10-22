@@ -372,4 +372,50 @@ public class ComplaintDto {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public String getWard() {
+        return location != null ? location : "Central Ward";
+    }
+
+    public java.util.List<String> getImages() {
+        if (photoUrl != null && !photoUrl.isBlank()) {
+            return java.util.List.of(photoUrl);
+        }
+        return java.util.List.of();
+    }
+
+    public java.util.Map<String, Object> getWorkProof() {
+        if (inspectionProofUrl != null && !inspectionProofUrl.isBlank()) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("image", inspectionProofUrl);
+            map.put("remarks", inspectionNotes != null ? inspectionNotes : "Inspection completed");
+            map.put("uploadedAt", inspectedAt != null ? inspectedAt.toString() : null);
+            map.put("uploadedBy", assignedOfficer != null ? assignedOfficer.getFullName() : "Field Officer");
+            return map;
+        }
+        return null;
+    }
+
+    public java.util.Map<String, Object> getResolutionProof() {
+        if (resolutionProofUrl != null && !resolutionProofUrl.isBlank()) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("image", resolutionProofUrl);
+            map.put("remarks", resolutionNotes != null ? resolutionNotes : "Resolution completed");
+            map.put("uploadedAt", resolvedAt != null ? resolvedAt.toString() : null);
+            map.put("uploadedBy", assignedOfficer != null ? assignedOfficer.getFullName() : "Field Officer");
+            return map;
+        }
+        return null;
+    }
+
+    public java.util.Map<String, Object> getFeedback() {
+        if (rating != null) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("rating", rating);
+            map.put("comments", feedbackComments != null ? feedbackComments : "");
+            map.put("createdAt", ratedAt != null ? ratedAt.toString() : null);
+            return map;
+        }
+        return null;
+    }
 }

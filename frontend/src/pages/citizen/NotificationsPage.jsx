@@ -10,9 +10,9 @@ export const NotificationsPage = () => {
   const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
 
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     if (currentUser) {
-      const data = notificationService.getNotifications(currentUser);
+      const data = await notificationService.getNotifications(currentUser);
       setNotifications(data);
     }
   };
@@ -21,13 +21,13 @@ export const NotificationsPage = () => {
     loadNotifications();
   }, [currentUser]);
 
-  const handleMarkAsRead = (id) => {
-    notificationService.markAsRead(id);
+  const handleMarkAsRead = async (id) => {
+    await notificationService.markAsRead(id);
     loadNotifications();
   };
 
-  const handleMarkAllAsRead = () => {
-    notificationService.markAllAsRead(currentUser);
+  const handleMarkAllAsRead = async () => {
+    await notificationService.markAllAsRead(currentUser);
     loadNotifications();
   };
 

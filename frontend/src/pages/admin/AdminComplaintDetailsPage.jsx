@@ -23,13 +23,42 @@ import {
   Clock
 } from 'lucide-react';
 
+import LoadingState from '../../components/common/LoadingState';
+
 export const AdminComplaintDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getComplaint, assignComplaint } = useComplaints();
-  const complaint = getComplaint(id);
+  const { getComplaint, fetchComplaint, assignComplaint } = useComplaints();
+  const [complaint, setComplaint] = useState(getComplaint(id));
+  const [loading, setLoading] = useState(!complaint);
 
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    fetchComplaint(id).then(c => {
+      if (isMounted && c) {
+        setComplaint(c);
+      }
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [id]);
+
+  const handleAssign = async (complaintId, officer, department, remarks) => {
+    const updated = await assignComplaint(complaintId, officer, department, remarks);
+    if (updated) {
+      setComplaint(updated);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LoadingState message="Loading complaint dossier..." />
+      </div>
+    );
+  }
 
   if (!complaint) {
     return (
@@ -226,7 +255,7 @@ export const AdminComplaintDetailsPage = () => {
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}
         complaint={complaint}
-        onAssign={assignComplaint}
+        onAssign={handleAssign}
       />
     </div>
   );

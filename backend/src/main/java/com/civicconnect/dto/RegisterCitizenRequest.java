@@ -62,4 +62,21 @@ public class RegisterCitizenRequest {
     public void setAddress(String address) {
         this.address = address;
     }
+
+    public String getName() {
+        return fullName;
+    }
+
+    public void setName(String name) {
+        this.fullName = name;
+    }
+
+    public String getPhone() {
+        return phoneNumber;
+    }
+
+    public void setPhone(String phone) {
+        this.phoneNumber = phone;
+    }
 }
+

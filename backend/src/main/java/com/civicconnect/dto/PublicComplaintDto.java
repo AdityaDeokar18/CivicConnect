@@ -145,4 +145,19 @@ public class PublicComplaintDto {
     public void setRating(Integer rating) {
         this.rating = rating;
     }
+
+    public String getAddress() {
+        return location != null ? location : "Municipal Ward Area";
+    }
+
+    public String getWard() {
+        return location != null ? location : "Ward Area";
+    }
+
+    public java.util.List<String> getImages() {
+        if (photoUrl != null && !photoUrl.isBlank()) {
+            return java.util.List.of(photoUrl);
+        }
+        return java.util.List.of();
+    }
 }

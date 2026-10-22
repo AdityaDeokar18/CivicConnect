@@ -41,6 +41,16 @@ public class AdminBootstrapRunner implements CommandLineRunner {
         // Check if an administrator already exists in the system
         long adminCount = userRepository.countByRole(Role.ROLE_ADMIN);
         if (adminCount > 0) {
+            if (StringUtils.hasText(adminEmail) && StringUtils.hasText(adminPassword)) {
+                String cleanEmail = adminEmail.trim().toLowerCase();
+                userRepository.findByEmail(cleanEmail).ifPresent(adminUser -> {
+                    if (adminUser.getRole() == Role.ROLE_ADMIN && !passwordEncoder.matches(adminPassword, adminUser.getPassword())) {
+                        adminUser.setPassword(passwordEncoder.encode(adminPassword));
+                        userRepository.save(adminUser);
+                        logger.info("Admin password synchronized with bootstrap configuration for: {}", cleanEmail);
+                    }
+                });
+            }
             logger.info("Administrator account already exists in database (count={}). Skipping bootstrap creation.", adminCount);
             return;
         }

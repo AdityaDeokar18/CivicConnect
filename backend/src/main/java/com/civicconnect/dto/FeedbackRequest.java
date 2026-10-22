@@ -35,4 +35,10 @@ public class FeedbackRequest {
     public void setComments(String comments) {
         this.comments = comments;
     }
+
+    public void setFeedback(String feedback) {
+        if (this.comments == null || this.comments.isBlank()) {
+            this.comments = feedback;
+        }
+    }
 }

@@ -92,4 +92,21 @@ public class RegisterOfficerRequest {
     public void setDesignation(String designation) {
         this.designation = designation;
     }
+
+    public String getName() {
+        return fullName;
+    }
+
+    public void setName(String name) {
+        this.fullName = name;
+    }
+
+    public String getPhone() {
+        return phoneNumber;
+    }
+
+    public void setPhone(String phone) {
+        this.phoneNumber = phone;
+    }
 }
+

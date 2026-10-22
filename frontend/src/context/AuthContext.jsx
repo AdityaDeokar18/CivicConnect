@@ -8,14 +8,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = authService.getCurrentUser();
-    setCurrentUser(user);
-    setLoading(false);
+    const initAuth = async () => {
+      const cached = authService.getCurrentUser();
+      if (cached) {
+        setCurrentUser(cached);
+        try {
+          const fresh = await authService.fetchCurrentUser();
+          if (fresh) {
+            setCurrentUser(fresh);
+          }
+        } catch {
+          // Token expired or invalid
+        }
+      }
+      setLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = async (email, password, expectedRole = null) => {
     const res = await authService.login(email, password, expectedRole);
-    if (res.success) {
+    if (res.success && res.user) {
       setCurrentUser(res.user);
     }
     return res;
@@ -35,12 +48,14 @@ export const AuthProvider = ({ children }) => {
 
   const registerCitizen = async (userData) => {
     const res = await authService.registerCitizen(userData);
+    if (res.success && res.user && res.token) {
+      setCurrentUser(res.user);
+    }
     return res;
   };
 
   const registerOfficer = async (officerData) => {
-    const res = await authService.registerOfficer(officerData);
-    return res;
+    return await authService.registerOfficer(officerData);
   };
 
   const register = async (userData) => {
@@ -50,14 +65,12 @@ export const AuthProvider = ({ children }) => {
     return registerCitizen(userData);
   };
 
-  const approveOfficer = (officerId) => {
-    const res = authService.approveOfficer(officerId);
-    return res;
+  const approveOfficer = async (officerId) => {
+    return await authService.approveOfficer(officerId);
   };
 
-  const rejectOfficer = (officerId) => {
-    const res = authService.rejectOfficer(officerId);
-    return res;
+  const rejectOfficer = async (officerId, reason) => {
+    return await authService.rejectOfficer(officerId, reason);
   };
 
   const logout = () => {

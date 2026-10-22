@@ -20,28 +20,39 @@ export const AssignmentModal = ({
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isOpen && complaint) {
-      const allDepts = adminService.getDepartments();
-      // Section 18 & 29: Only APPROVED officers can be assigned!
-      const approvedOfficers = authService.getRegisteredOfficers(true);
-      setDepartments(allDepts);
-      setOfficers(approvedOfficers);
+    let isMounted = true;
+    const loadModalData = async () => {
+      if (isOpen && complaint) {
+        try {
+          const [allDepts, approvedOfficers] = await Promise.all([
+            adminService.getDepartments(),
+            authService.getRegisteredOfficers(true)
+          ]);
+          if (!isMounted) return;
+          setDepartments(allDepts);
+          setOfficers(approvedOfficers);
 
-      const initialDept = complaint.department || (allDepts[0] ? allDepts[0].name : '');
-      setSelectedDept(initialDept);
+          const initialDept = complaint.department || (allDepts[0] ? allDepts[0].name : '');
+          setSelectedDept(initialDept);
 
-      if (approvedOfficers.length > 0) {
-        setSelectedOfficerId(String(approvedOfficers[0].id));
-      } else {
-        setSelectedOfficerId('');
+          if (approvedOfficers.length > 0) {
+            setSelectedOfficerId(String(approvedOfficers[0].id));
+          } else {
+            setSelectedOfficerId('');
+          }
+
+          setRemarks(`Assigned to field division for site inspection and repair in ${complaint.address || 'ward jurisdiction'}.`);
+          setError('');
+        } catch (err) {
+          console.error('Failed to load assignment data:', err);
+        }
       }
-
-      setRemarks(`Assigned to field division for site inspection and repair in ${complaint.address || 'ward jurisdiction'}.`);
-      setError('');
-    }
+    };
+    loadModalData();
+    return () => { isMounted = false; };
   }, [isOpen, complaint]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -56,7 +67,7 @@ export const AssignmentModal = ({
       return;
     }
 
-    onAssign(complaint.id, officer, selectedDept, remarks);
+    await onAssign(complaint.id, officer, selectedDept, remarks);
     onClose();
   };
 

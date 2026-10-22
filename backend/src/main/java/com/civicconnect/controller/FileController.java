@@ -28,6 +28,7 @@ public class FileController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "url", fileDownloadUri,
+                "fileUrl", fileDownloadUri,
                 "filename", file.getOriginalFilename() != null ? file.getOriginalFilename() : "uploaded_file"
         ));
     }

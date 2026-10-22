@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { notificationService } from '../../services/notificationService';
 import Card from '../../components/common/Card';
@@ -7,18 +7,25 @@ import EmptyState from '../../components/common/EmptyState';
 import { Bell, CheckCheck, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export const AdminNotificationsPage = () => {
-  const [notifications, setNotifications] = useState(
-    notificationService.getNotificationsForRole('ROLE_ADMIN')
-  );
+  const [notifications, setNotifications] = useState([]);
 
-  const handleMarkAllAsRead = () => {
-    notificationService.markAllAsRead('ROLE_ADMIN');
-    setNotifications(notificationService.getNotificationsForRole('ROLE_ADMIN'));
+  const loadNotifications = async () => {
+    const data = await notificationService.getNotificationsForRole('ROLE_ADMIN');
+    setNotifications(data);
   };
 
-  const handleMarkRead = (id) => {
-    notificationService.markAsRead(id);
-    setNotifications(notificationService.getNotificationsForRole('ROLE_ADMIN'));
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleMarkAllAsRead = async () => {
+    await notificationService.markAllAsRead('ROLE_ADMIN');
+    loadNotifications();
+  };
+
+  const handleMarkRead = async (id) => {
+    await notificationService.markAsRead(id);
+    loadNotifications();
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

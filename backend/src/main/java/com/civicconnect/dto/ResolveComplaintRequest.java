@@ -32,4 +32,29 @@ public class ResolveComplaintRequest {
     public void setRemarks(String remarks) {
         this.remarks = remarks;
     }
+
+    public void setResolutionProofUrl(String resolutionProofUrl) {
+        if (this.proofUrl == null || this.proofUrl.isBlank()) {
+            this.proofUrl = resolutionProofUrl;
+        }
+    }
+
+    public void setProof(String proof) {
+        if (this.proofUrl == null || this.proofUrl.isBlank()) {
+            this.proofUrl = proof;
+        }
+    }
+
+    public void setResolutionNotes(String resolutionNotes) {
+        if (this.remarks == null || this.remarks.isBlank()) {
+            this.remarks = resolutionNotes;
+        }
+    }
+
+    public void setNotes(String notes) {
+        if (this.remarks == null || this.remarks.isBlank()) {
+            this.remarks = notes;
+        }
+    }
+
 }
